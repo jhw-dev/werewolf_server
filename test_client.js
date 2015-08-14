@@ -19,6 +19,8 @@ ws.on('message', function(data, flags) {
 var obj=new Object();
 obj.key=1
 obj.s="test"
+delete obj;
+obj=null;
 
 var obj=new Array(1,"Rss")
 

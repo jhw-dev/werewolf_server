@@ -87,6 +87,13 @@ Role.prototype.getSocket= function () {
     return this._ws
 }
 
+//重置状态
+Role.prototype.resetState=function()
+{
+    this.isDead=false;
+    this.isReady=false;
+    this.protection = false;
+}
 
 
 //----------游戏逻辑-----
@@ -119,23 +126,24 @@ Game.prototype.cleanVote=function()
 {
     this.voteResult=null;
     this.voteResult=new Object();
-    this.hasVoteRole.cleanup();
+    this.hasVoteRole.length=0;
 }
 
 //新游戏开始清除数据
 Game.prototype.cleanAll=function()
 {
-    for(var role in this.client)
+    for(var key in this.client)
     {
-        role=null;
+        this.client[key]=null;
     }
-    this.client.removeAllRanges();
+
+    this.client.length=0
     this._clientKey=null;
     this._clientKey=new Object();
     this.isChoosePoilceman=false;
-    this.wolfList.removeAllRanges();
-    this.roleDeadList.removeAllRanges();
-    this.gameRoleId.removeAllRanges();
+    this.wolfList.length=0;
+    this.roleDeadList.length=0;
+    this.gameRoleId.length=0;
 }
 
 Game.prototype.pushRole=function(role)
@@ -203,6 +211,10 @@ Game.prototype.startNight = function()
         {
             return false;
         }
+    });
+    //重置角色的状态
+    this.client.forEach(function(role){
+        role.resetState();
     });
     //开始播放守卫信息
     this.broadcast(1003,{});
@@ -427,25 +439,12 @@ wss.on('connection', function connection(ws) {
     console.log("Client conn");
 
     ws.on('message', function incoming(message) {
-        //var val=eval ("(" + message + ")");
-        //var data={}
-        //data.cmd = val.cmd
-        //data.data = val.data
-        //var d=JSON.stringify(data)
-        //ws.send(d)
         try{
             console.log('received: %s', message);
             server_msg.decode(message);
         }catch(e){
-            console.log("received error:%s", e.toString());
+            console.log("runing error:%s", e.toString());
         }
-
-        //wss.clients.forEach(function each(client) {
-        //    client.send(data);
-        //});
-
-        //var command = message.cmd
-        //var data = message.data
 
 
     });
