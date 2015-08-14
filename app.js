@@ -7,7 +7,7 @@ var WebSocketServer = require('ws').Server
     , wss = new WebSocketServer({ port: 8080 });
 
 var server_msg = new Messages(wss);
-var game = new Game(8);
+var gameMain = new Game(8);
 
 //-------------Message
 function Messages(wss)
@@ -19,15 +19,18 @@ function Messages(wss)
 Messages.prototype.decode = function(data,ws)
 {
 
-    var decodeMsg=eval ("(" + data + ")");
 
-    var cmd = decodeMsg.cmd;
-    var data = decodeMsg.data;
+        var decodeMsg=eval ("(" + data + ")");
 
-    var fun=this.command_[cmd];
-    if(fun){
-        fun.call(data,ws);
-    }
+        var cmd = decodeMsg.cmd;
+        var data = decodeMsg.data;
+
+        var fun=this.command_[cmd];
+        if(fun){
+            fun.call(data,ws);
+        }
+
+
 }
 
 
@@ -50,7 +53,7 @@ function Role(ws)
     this.id=null;
     this.type=null;
     this.isDead = false;
-    this.num= nil;
+    this.num= null;
     //是否为警长
     this.sheriff = false;
     //是否投票
@@ -139,7 +142,7 @@ Game.prototype.pushRole=function(role)
 {
 
     this.client.push(role)
-    var role_num = this.client.length();
+    var role_num = this.client.length;
     console.log("当前请求开始游戏人数:%s",role_num);
     if(role_num==this.role_num && !this.startGame)
     {
@@ -158,7 +161,7 @@ Game.prototype.startGame=function()
     console.log("startGame..");
     var type_list = [Role.TYPE.SW,Role.TYPE.LR,Role.TYPE.NW,Role.TYPE.YY,Role.LR];
     //插入平民到队列
-    for(var i=this.role_num-type_list.length();i<this.role_num;i++)
+    for(var i=this.role_num-type_list.length;i<this.role_num;i++)
     {
         type_list.push(Role.TYPE.PM);
     }
@@ -169,7 +172,7 @@ Game.prototype.startGame=function()
     for(var role in this.client)
     {
         var data=new Object();
-        var index = math.random()*type_list.length();
+        var index = math.random()*type_list.length;
         data.id = index+1000;
         data.type = type_list[index];
         data.num = index;
@@ -260,7 +263,7 @@ Game.prototype.voteSheriff=function()
 Game.prototype.hasVote=function(roleID)
 {
     this.hasVoteRole.push(roleID);
-    if(this.hasVoteRole.length()==this.gameRoleId.length())
+    if(this.hasVoteRole.length==this.gameRoleId.length)
     {
 
         var result_id = 0;
@@ -283,49 +286,49 @@ Game.prototype.hasVote=function(roleID)
 //---请求登录
 server_msg.register(1001,function(data,ws){
     //游戏没有开始则加入角色到游戏队列
-    if(!game.isStart())
+    if(!gameMain.isStart())
     {
         var role = new Role(ws)
-        game.pushRole(role);
+        gameMain.pushRole(role);
     }
 
 });
 //－－－－点击准备
 server_msg.register(1003,function(data,ws){
-   var role= game.getRoleById(data.id);
+   var role= gameMain.getRoleById(data.id);
     role.isReady = true;
-    game.startNight();
+    gameMain.startNight();
 
 })
 //--接收到守卫的请求
 server_msg.register(1004,function(data,ws){
-    var role= game.getRoleById(data.id);
+    var role= gameMain.getRoleById(data.id);
     role.protection=true;
     //--广播守卫完成
-    game.broadcast(1004,{});
+    gameMain.broadcast(1004,{});
 });
 //--预言家验证角色
 server_msg.register(1005,function(data,ws){
-    var role= game.getRoleById(data.id);
+    var role= gameMain.getRoleById(data.id);
     server_msg.send(1005,role.getData(),ws);
 });
 //--预言家确认,广播下一步
 server_msg.register(1006,function(data,ws){
-    game.broadcast(1006,{});
+    gameMain.broadcast(1006,{});
 });
 //--狼人开始杀人--
 server_msg.register(1007,function(data,ws){
-    var role= game.getRoleById(data.id);
+    var role= gameMain.getRoleById(data.id);
     if(!role.protection)
     {
         role.isDead = true;
     }
     //只要一个狼人点击后则开始进入下一个回合:TODO
-    game.broadcast(1007,{});
+    gameMain.broadcast(1007,{});
 });
 //--女巫环节
 server_msg.register(1008,function(data,ws){
-    var role = game.getRoleById(data.id);
+    var role = gameMain.getRoleById(data.id);
     if(data.type==1 && !role.isDead)
     {
         role.isDead = true;
@@ -337,40 +340,40 @@ server_msg.register(1008,function(data,ws){
     }
 
     //返回死亡列表,不为空则不需要留遗言
-    var roles_dead=game.getDeadRoles();
+    var roles_dead=gameMain.getDeadRoles();
     if(roles_dead)
     {
-        game.broadcast(1009,{roles:roles_dead});
+        gameMain.broadcast(1009,{roles:roles_dead});
     }
 });
 //--遗言确认,所有死亡人确认后在接下来游戏
 server_msg.register(1010,function(data,ws){
    var role_id = data.id;
     var index=0;
-    for(var role in game.roleDeadList)
+    for(var role in gameMain.roleDeadList)
     {
         if(role.id==role_id)
         {
-            game.roleDeadList.splice(index,1);
+            gameMain.roleDeadList.splice(index,1);
             break;
         }
         index++;
     }
-    if(game.roleDeadList.length<1)
+    if(gameMain.roleDeadList.length<1)
     {
         //--投票选警长还是投票杀人
-        game.vote();
+        gameMain.vote();
     }
 
 });
 //投票选警长
 server_msg.register(1012,function(data,ws){
-    var roleVote = game.voteResult[data.id];
+    var roleVote = gameMain.voteResult[data.id];
     var vote_num=(roleVote==null)?0:roleVote+=1;
-    game.voteResult[data.id]=vote_num;
+    gameMain.voteResult[data.id]=vote_num;
 
     var roleId = data.roleId;
-    var result_roleId=game.hasVote(roleId);
+    var result_roleId=gameMain.hasVote(roleId);
     if(result_roleId>-1)
     {
         this.broadcast(1012,{roleID:result_roleId});
@@ -381,7 +384,7 @@ server_msg.register(1012,function(data,ws){
 
 //投票杀人
 server_msg.register(1013,function(data,ws){
-    var roleVote = game.voteResult[data.id];
+    var roleVote = gameMain.voteResult[data.id];
     var vote_num=(roleVote==null)?0:roleVote+=1;
     //警长多0.5票
     var roleId = data.roleId;
@@ -390,8 +393,8 @@ server_msg.register(1013,function(data,ws){
     {
         vote_num+=0.5;
     }
-    game.voteResult[data.id]=vote_num;
-   var result_id= game.hasVote(roleId);
+    gameMain.voteResult[data.id]=vote_num;
+   var result_id= gameMain.hasVote(roleId);
     if(result_id>-1)
     {
         this.broadcast(10013,{roleID:result_id});
@@ -402,13 +405,13 @@ server_msg.register(1013,function(data,ws){
     if(isGameOver)
     {
         this.broadcast(1014,{result:1});
-        game.cleanAll();
+        gameMain.cleanAll();
     }
 
 });
 //移交警长
 server_msg.register(1015,function(data,ws){
-    var role=game.getRoleById(data.id);
+    var role=gameMain.getRoleById(data.id);
     role.sheriff=true;
 });
 
@@ -423,8 +426,12 @@ wss.on('connection', function connection(ws) {
         //data.data = val.data
         //var d=JSON.stringify(data)
         //ws.send(d)
-        server_msg.decode(message);
-        console.log('received: %s', d);
+        try{
+            console.log('received: %s', message);
+            server_msg.decode(message);
+        }catch(e){
+            console.log("received error:%s", e.toString());
+        }
 
         //wss.clients.forEach(function each(client) {
         //    client.send(data);
