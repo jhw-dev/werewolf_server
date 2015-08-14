@@ -169,8 +169,9 @@ Game.prototype.startGame=function()
     var index=1;
     var sendData =new Array();
 
-    for(var role in this.client)
+    for(var index in this.client)
     {
+        var role = this.client[index];
         var data=new Object();
         var index = math.random()*type_list.length;
         data.id = index+1000;
@@ -184,41 +185,40 @@ Game.prototype.startGame=function()
         index++;
     }
 
-    for(var role in this.client)
-    {
+    this.client.forEach(function(role){
         var data = role.getData();
         data.roleList = sendData;
-        server_msg.send(1002,data,role.getSocket())
-    }
+        server_msg.send(1002,data,role.getSocket());
+    })
+
 
 }
 //判断客户都准备好了则开始天黑
 Game.prototype.startNight = function()
 {
     //判断所有客户端都准备好了
-    for(var role in this.client)
-    {
-       if(!role.isReady)
-       {
-           return false;
-       }
-    }
+    this.client.forEach(function(role){
+
+        if(!role.isReady)
+        {
+            return false;
+        }
+    });
     //开始播放守卫信息
     this.broadcast(1003,{});
 }
 //广播消息
 Game.prototype.broadcast=function(cmd,data)
 {
-    for(var role in this.client)
-    {
+    this.client.forEach(function(role){
         server_msg.send(cmd,data,role.getSocket());
-    }
+    });
 }
 //获取死亡列表
 Game.prototype.getDeadRoles=function()
 {
     var roles=[];
-    for(var role in this.client)
+    this.client.forEach(function(role)
     {
         if(role.isDead)
         {
@@ -235,13 +235,15 @@ Game.prototype.getDeadRoles=function()
             }
             this.gameRoleId.push(role.id);
         }
-    }
+    });
+
     this.roleDeadList=roles;
     if(this.roleDeadList.length<1)
     {
         //执行其他命令 选警长 或投票
         this.vote();
     }
+
     return roles;
 }
 //投票
@@ -268,12 +270,14 @@ Game.prototype.hasVote=function(roleID)
 
         var result_id = 0;
         var tmpVoteNum=0;
-        this.voteResult.forEach(function(k,value){
-            if(tmpVoteNum<value)
+        for(var key in this.voteResult)
+        {
+            var role_vote_num = this.voteResult[key];
+            if(role_vote_num>tmpVoteNum)
             {
-                result_id=k;
+                result_id=key;
             }
-        });
+        }
 
         //清理投票结果
         this.cleanVote();
@@ -350,8 +354,10 @@ server_msg.register(1008,function(data,ws){
 server_msg.register(1010,function(data,ws){
    var role_id = data.id;
     var index=0;
-    for(var role in gameMain.roleDeadList)
+
+    for(var key in gameMain.roleDeadList)
     {
+        var role = gameMain.roleDeadList[key];
         if(role.id==role_id)
         {
             gameMain.roleDeadList.splice(index,1);
@@ -359,6 +365,7 @@ server_msg.register(1010,function(data,ws){
         }
         index++;
     }
+
     if(gameMain.roleDeadList.length<1)
     {
         //--投票选警长还是投票杀人
