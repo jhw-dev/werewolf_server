@@ -177,8 +177,8 @@ Game.prototype.pushRole=function(role)
 {
 
     this.client.push(role)
-    var role_num = this.client.length;
-    this.getRoleById();
+    var role_num =  this.getRoleSize();
+
     if(role_num==this.role_num && !this.isStartGame)
     {
         this.isStartGame = true;
@@ -190,6 +190,7 @@ Game.prototype.getRoleSize=function()
 {
     var role_num = this.client.length;
     console.log("当前请求开始游戏人数:%s",role_num);
+    return role_num
 }
 
 Game.prototype.getRoleById=function(roleId)
@@ -207,15 +208,16 @@ Game.prototype.startGame=function()
         type_list.push(Role.TYPE.PM);
     }
     //角色分配数据
-    var index=1;
+    var index_num=1;
     var sendData =new Array();
 
-    for(var index in this.client)
+    for(var key in this.client)
     {
-        var role = this.client[index];
+        var role = this.client[key];
         var data=new Object();
-        var index = Math.random()*type_list.length;
-        data.id = parseInt(index+1000);
+        var index = parseInt(Math.random()*type_list.length);
+
+        data.id = parseInt(index_num+1000);
         data.type = type_list[index];
         data.num = parseInt(index);
         type_list.splice(index,1);
@@ -223,7 +225,7 @@ Game.prototype.startGame=function()
         sendData.push(role.getData());
         this._clientKey[data.id]=role;
         this.gameRoleId.push(role.id);
-        index++;
+        index_num++;
     }
 
     this.client.forEach(function(role){
