@@ -7,7 +7,7 @@ var WebSocketServer = require('ws').Server
     , wss = new WebSocketServer({ port: 8080 });
 
 var server_msg = new Messages(wss);
-var gameMain = new Game(8);
+var gameMain = new Game(1);
 
 //-------------Message
 function Messages(wss)
@@ -27,7 +27,7 @@ Messages.prototype.decode = function(data,ws)
 
         var fun=this.command_[cmd];
         if(fun){
-            fun.call(data,ws);
+            fun.call(null,data,ws);
         }
 
 
@@ -41,7 +41,11 @@ Messages.prototype.register=function(cmd,fun)
 
 Messages.prototype.send = function(cmd,data,ws)
 {
-    var d=JSON.stringify(data);
+    var send_data=new Object();
+    send_data.cmd = cmd;
+    send_data.data = (data)?data:new Object();;
+    var d=JSON.stringify(send_data);
+    console.log("Send Data:%s",d);
     ws.send(d)
 }
 
@@ -99,7 +103,7 @@ Role.prototype.resetState=function()
 //----------游戏逻辑-----
 function Game(num)
 {
-    this.startGame=false
+    this.isStartGame=false
     //初始化游戏角色人数
     this.role_num = num;
     this.client = new Array();
@@ -119,7 +123,7 @@ function Game(num)
 
 Game.prototype.isStart = function()
 {
-    return this.startGame;
+    return this.isStartGame;
 }
 
 Game.prototype.cleanVote=function()
@@ -145,18 +149,47 @@ Game.prototype.cleanAll=function()
     this.roleDeadList.length=0;
     this.gameRoleId.length=0;
 }
+//--主动关闭客户端的成员删除
+Game.prototype.closeRole = function(ws)
+{
+    var index=0;
+    for(var key in this.client)
+    {
+        var role = this.client[key];
+        if(role.getSocket()==ws)
+        {
+            this.client[key]=null;
+            this.client.splice(index,1);
+            break;
+        }
+        index++;
+    }
+
+    if(this.client.length==0)
+    {
+        this.cleanAll();
+        this.isStartGame=false;
+    }
+
+}
 
 Game.prototype.pushRole=function(role)
 {
 
     this.client.push(role)
     var role_num = this.client.length;
-    console.log("当前请求开始游戏人数:%s",role_num);
-    if(role_num==this.role_num && !this.startGame)
+    this.getRoleById();
+    if(role_num==this.role_num && !this.isStartGame)
     {
-        this.startGame = true;
+        this.isStartGame = true;
         this.startGame();
     }
+}
+
+Game.prototype.getRoleSize=function()
+{
+    var role_num = this.client.length;
+    console.log("当前请求开始游戏人数:%s",role_num);
 }
 
 Game.prototype.getRoleById=function(roleId)
@@ -181,10 +214,10 @@ Game.prototype.startGame=function()
     {
         var role = this.client[index];
         var data=new Object();
-        var index = math.random()*type_list.length;
-        data.id = index+1000;
+        var index = Math.random()*type_list.length;
+        data.id = parseInt(index+1000);
         data.type = type_list[index];
-        data.num = index;
+        data.num = parseInt(index);
         type_list.splice(index,1);
         role.setData(data);
         sendData.push(role.getData());
@@ -425,6 +458,7 @@ server_msg.register(1013,function(data,ws){
     {
         this.broadcast(1014,{result:1});
         gameMain.cleanAll();
+        gameMain.isStartGame=false;
     }
 
 });
@@ -436,17 +470,23 @@ server_msg.register(1015,function(data,ws){
 
 
 wss.on('connection', function connection(ws) {
-    console.log("Client conn");
-
+    console.log("Has Client conn");
+    gameMain.getRoleSize();
     ws.on('message', function incoming(message) {
         try{
             console.log('received: %s', message);
-            server_msg.decode(message);
+            server_msg.decode(message,ws);
         }catch(e){
             console.log("runing error:%s", e.toString());
         }
 
 
+    });
+
+    ws.on('close',function close(){
+        console.log("客户端离开");
+        gameMain.closeRole(ws);
+        gameMain.getRoleSize();
     });
 
 });
