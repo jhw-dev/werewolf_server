@@ -7,7 +7,7 @@ var WebSocketServer = require('ws').Server
     , wss = new WebSocketServer({ port: 8080 });
 
 var server_msg = new Messages(wss);
-var gameMain = new Game(1);
+var gameMain = new Game(2);
 
 //-------------Message
 function Messages(wss)
@@ -240,13 +240,16 @@ Game.prototype.startGame=function()
 Game.prototype.startNight = function()
 {
     //判断所有客户端都准备好了
-    this.client.forEach(function(role){
-
+    for(var key in this.client)
+    {
+        var role = this.client[key];
         if(!role.isReady)
         {
             return false;
         }
-    });
+
+    }
+    
     //重置角色的状态
     this.client.forEach(function(role){
         role.resetState();
