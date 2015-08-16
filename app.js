@@ -432,40 +432,56 @@ server_msg.register(1003,function(data,ws){
 })
 //--接收到守卫的请求
 server_msg.register(1004,function(data,ws){
-    var role= gameMain.getRoleById(data.id);
-    var round=gameMain.prototypeRoleList[role.id]
-    if(round && (round+1)==this.Rounds)
+    var sendData = {};
+    if(data.id)
     {
-        console.log("已经被守卫守过的人!!!!");
-        return false;
-    }
+        var role= gameMain.getRoleById(data.id);
+        var round=gameMain.prototypeRoleList[role.id]
+        if(round && (round+1)==this.Rounds)
+        {
+            console.log("已经被守卫守过的人!!!!");
+            return false;
+        }
 
-    role.protection=true;
-    gameMain.prototypeRoleList[role.id]=this.Rounds;
+        role.protection=true;
+        gameMain.prototypeRoleList[role.id]=this.Rounds;
+        sendData.id = role.id
+    }
     //--广播守卫完成
-    gameMain.broadcast(1004,{id:role.id});
+    gameMain.broadcast(1004,sendData);
 });
+
+//预言家确认验证的角色
+function clickRole()
+{
+    gameMain.broadcast(1006,{});
+}
 //--预言家验证角色
 server_msg.register(1005,function(data,ws){
-    var role= gameMain.getRoleById(data.id);
-    server_msg.send(1005,role.getData(),ws);
+
+    if(data.id)
+    {
+        var role= gameMain.getRoleById(data.id);
+        server_msg.send(1005,role.getData(),ws);
+    }else{
+        clickRole();
+    }
+
 });
 //--预言家确认,广播下一步
-server_msg.register(1006,function(data,ws){
-    gameMain.broadcast(1006,{});
-});
-
+server_msg.register(1006,clickRole);
 
 //--狼人开始杀人--
 server_msg.register(1007,function(data,ws){
 
     var wolf = gameMain.getRoleByWS(ws);
-    //狼人意见不统一
-    if(gameMain.killRoleID && gameMain.killRoleID!=data.id)
-    {
-        gameMain.broadcast(1007,{result:0,deadRole:gameMain.killRoleID});
+    if(data.id){
+        //狼人意见不统一
+        if(gameMain.killRoleID && gameMain.killRoleID!=data.id)
+        {
+            gameMain.broadcast(1007,{result:0,deadRole:gameMain.killRoleID});
+        }
     }
-
     gameMain.clickWolfNum++;
     gameMain.killRoleID=data.id;
     if(gameMain.clickWolfNum>=gameMain.wolfGameRole().length)
@@ -484,22 +500,28 @@ server_msg.register(1007,function(data,ws){
 });
 //--女巫环节
 server_msg.register(1008,function(data,ws){
-    var role = gameMain.getRoleById(data.id);
-    //毒人判断
-    if(data.type==1 && !role.isDead)
-    {
-        role.isDead = true;
-    }
-    //救人判断
-    if(data.type==2 && role.isDead)
-    {
-        role.isDead = false;
-    }
 
-    //判断女巫使用解药和守卫守卫是否对同一个人
-    if(data.type==2 && role.protection)
+    if(data.id)
     {
-        role.isDead=true;
+
+        var role = gameMain.getRoleById(data.id);
+        //毒人判断
+        if(data.type==1 && !role.isDead)
+        {
+            role.isDead = true;
+        }
+        //救人判断
+        if(data.type==2 && role.isDead)
+        {
+            role.isDead = false;
+        }
+
+        //判断女巫使用解药和守卫守卫是否对同一个人
+        if(data.type==2 && role.protection)
+        {
+            role.isDead=true;
+        }
+
     }
     //女巫先救人后毒人
     //返回死亡列表,不为空则不需要留遗言
@@ -521,13 +543,10 @@ server_msg.register(1008,function(data,ws){
         }
         if(roles_dead.length>0)
         {
-
             //执行其他命令 选警长 或投票
             gameMain.vote();
         }
     }
-
-
 
 });
 //--遗言确认,所有死亡人确认后在接下来游戏
